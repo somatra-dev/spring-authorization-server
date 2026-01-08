@@ -24,10 +24,10 @@ import java.util.UUID;
 @Service
 @Transactional
 public class ClientService {
+
     private final ClientRepository clientRepository;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
-    public Client client;
 
     public ClientService(ClientRepository clientRepository,
                          PasswordEncoder passwordEncoder,
@@ -99,7 +99,7 @@ public class ClientService {
         List<String> redirectUris = request.getRedirectUris() != null && !request.getRedirectUris().isEmpty()
                 ? request.getRedirectUris()
                 : List.of(
-                "http://127.0.0.1:8080/login/oauth2/code/" + request.getClientId(),
+                "http://127.0.0.1:9000/login/oauth2/code/" + request.getClientId(),
                 "http://localhost:3000/oauth/callback"
         );
         client.setRedirectUris(objectMapper.writeValueAsString(redirectUris));
@@ -155,7 +155,7 @@ public class ClientService {
         List<String> redirectUris = request.getRedirectUris() != null && !request.getRedirectUris().isEmpty()
                 ? request.getRedirectUris()
                 : List.of(
-                "http://127.0.0.1:8080/login/oauth2/code/" + request.getClientId(),
+                "http://127.0.0.1:9000/login/oauth2/code/" + request.getClientId(),
                 "http://localhost:3000/oauth/callback"
         );
         client.setRedirectUris(objectMapper.writeValueAsString(redirectUris));
@@ -174,7 +174,7 @@ public class ClientService {
         client.setScopes(objectMapper.writeValueAsString(scopes));
 
         // Client settings (PKCE optional)
-        Boolean requireProofKey = request.getRequireProofKey() != null
+        boolean requireProofKey = request.getRequireProofKey() != null
                 ? request.getRequireProofKey()
                 : false; // Default to false for normal auth
 
@@ -251,12 +251,9 @@ public class ClientService {
         response.setClientType(clientType.toUpperCase());
         response.setMessage(clientType + " client created successfully");
 
-        try {
-            List<String> scopes = objectMapper.readValue(client.getScopes(), List.class);
-            response.setScopes(String.join(" ", scopes));
-        } catch (Exception e) {
-            response.setScopes("");
-        }
+        List<String> scopes = objectMapper.readValue(client.getScopes(),
+                objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+        response.setScopes(String.join(" ", scopes));
 
         return response;
     }

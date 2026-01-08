@@ -1,7 +1,6 @@
 package auth.res_server.demo.security;
 
 import auth.res_server.demo.config.CustomUserDetails;
-import auth.res_server.demo.repository.UserRepository;
 import auth.res_server.demo.service.impl.CustomUserDetailsService;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -20,11 +19,11 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
@@ -34,6 +33,7 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -52,7 +52,7 @@ import java.util.stream.Collectors;
 public class AuthorizationServerConfig {
 
     private final PasswordEncoder passwordEncoder;
-    private final UserRepository userRepository;
+
 
     @Bean
     @Order(1)
@@ -61,50 +61,107 @@ public class AuthorizationServerConfig {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
         http.apply(authorizationServerConfigurer);
 
+
+        authorizationServerConfigurer
+                .authorizationEndpoint(authorizationEndpoint ->
+                        authorizationEndpoint.consentPage("/oauth2/consent"))
+                .oidc(oidc -> oidc
+                        // Enable OIDC configuration endpoint
+                        .providerConfigurationEndpoint(providerConfigurationEndpoint -> {
+
+                        })
+                );
         http
-                .oauth2AuthorizationServer(authorizationServer -> {
-                    // This automatically installs ALL needed filters + correct securityMatcher
-                    http.securityMatcher(authorizationServer.getEndpointsMatcher());
-
-                    authorizationServer
-                            .oidc(Customizer.withDefaults())  // enables /userinfo, openid scope, etc.
-                            .authorizationEndpoint(a ->
-                                    a.consentPage("/oauth2/consent")  // your custom consent page
-                            );
-                })
-
-                // OAuth2 endpoints require authentication (normal)
-                .authorizeHttpRequests(authorize ->
-                        authorize
-                                .requestMatchers("/oauth2/token","/oauth2/token",
-                                        "/oauth2/jwks",
-                                        "/oauth2/introspect",
-                                        "/oauth2/revoke").permitAll()
-
-                                .anyRequest().authenticated()
+                .securityMatcher(
+                        "/oauth2/**",
+                        "/.well-known/**",
+                        "/connect/**",
+                        "/userinfo"
                 )
-                .csrf(csrf -> csrf.disable())
-
-                // Redirect to /login when the user is not authenticated
-                // and the request is HTML (browser)
+                .authorizeHttpRequests(authorize -> authorize
+                        // Public endpoints
+                        .requestMatchers(
+                                "/.well-known/openid-configuration",
+                                "/.well-known/oauth-authorization-server",
+                                "/oauth2/jwks"
+                        ).permitAll()
+                        .requestMatchers("/connect/logout").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .csrf(csrf -> csrf.ignoringRequestMatchers(
+                        "/.well-known/openid-configuration",
+                        "/.well-known/oauth-authorization-server",
+                        "/oauth2/jwks"
+                ))
                 .exceptionHandling(exceptions -> exceptions
-                        .defaultAuthenticationEntryPointFor(
-                                new LoginUrlAuthenticationEntryPoint("/login"),
-                                new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
+                        .authenticationEntryPoint(
+                                new LoginUrlAuthenticationEntryPoint("/login")
                         )
                 );
 
         return http.build();
     }
 
+//    @Bean
+//    @Order(1)
+//    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+//
+//        OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
+//        http.apply(authorizationServerConfigurer);
+//
+//        http
+//                .oauth2AuthorizationServer(authorizationServer -> {
+//                    // This automatically installs ALL needed filters + correct securityMatcher
+//                    http.securityMatcher(authorizationServer.getEndpointsMatcher());
+//
+//                    authorizationServer
+//                            .authorizationEndpoint(a ->
+//                                    a.consentPage("/oauth2/consent")
+//                            );
+
+    /// /
+//                })
+//
+//
+//                // OAuth2 endpoints require authentication (normal)
+//                .authorizeHttpRequests(authorize ->
+//                        authorize
+//                                .requestMatchers("/oauth2/token",
+//                                        "/oauth2/jwks",
+//                                        "/oauth2/introspect",
+//                                        "/oauth2/revoke",
+//                                        "/connect/logout",
+//                                        "/.well-known/openid-configuration",
+//                                        "/.well-known/oauth-authorization-server")
+//                                .permitAll()
+//                                .anyRequest().authenticated()
+//                )
+//                .csrf(AbstractHttpConfigurer::disable)
+//
+//                // Redirect to /login when the user is not authenticated
+//                // and the request is HTML (browser)
+//                .exceptionHandling(exceptions -> exceptions
+//                        .defaultAuthenticationEntryPointFor(
+//                                new LoginUrlAuthenticationEntryPoint("/login"),
+//                                new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
+//                        )
+//                );
+//
+//        return http.build();
+//    }
     @Bean
     @Order(2)
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http
+                .securityMatcher("/**")  // Match all other requests
                 .authorizeHttpRequests(authorize ->
                         authorize
                                 .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
+                                .requestMatchers("/api/v1/auth/verify-email").permitAll()
+                                .requestMatchers("/api/v1/auth/resend-verification").permitAll()
                                 .requestMatchers("/api/v1/clients/**").permitAll()
+                                .requestMatchers("/api/v1/roles/**").permitAll()
+                                .requestMatchers("/api/v1/authorities/**").permitAll()
                                 .requestMatchers("/login", "/register", "/error", "/css/**", "/js/**").permitAll()
                                 .anyRequest().authenticated()
                 )
@@ -123,57 +180,6 @@ public class AuthorizationServerConfig {
         return http.build();
     }
 
-
-    // config for in memories
-
-//    @Bean
-//    public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate) {
-//        // Use JdbcRegisteredClientRepository for database storage
-//        JdbcRegisteredClientRepository registeredClientRepository =
-//                new JdbcRegisteredClientRepository(jdbcTemplate);
-//
-//        // Create a default client if not exists
-//        if (registeredClientRepository.findByClientId("test-client") == null) {
-//            RegisteredClient testClient = RegisteredClient.withId(UUID.randomUUID().toString())
-//                    .clientId("test-client")
-//                    .clientSecret(passwordEncoder.encode("test-secret"))
-//                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-//                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-//                    .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-//                    .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-//                    .redirectUri("http://127.0.0.1:8080/login/oauth2/code/test-client")
-//                    .redirectUri("http://127.0.0.1:8080/authorized")
-//                    .scope(OidcScopes.OPENID)
-//                    .scope(OidcScopes.PROFILE)
-//                    .scope("read")
-//                    .scope("write")
-//                    .clientSettings(ClientSettings.builder()
-//                            .requireAuthorizationConsent(true)
-//                            .build())
-//                    .tokenSettings(TokenSettings.builder()
-//                            .accessTokenTimeToLive(Duration.ofHours(1))
-//                            .refreshTokenTimeToLive(Duration.ofDays(30))
-//                            .reuseRefreshTokens(false)
-//                            .build())
-//                    .build();
-//
-//            registeredClientRepository.save(testClient);
-//        }
-//
-//        return registeredClientRepository;
-//    }
-
-//    @Bean
-//    public OAuth2AuthorizationService authorizationService(JdbcTemplate jdbcTemplate,
-//                                                           RegisteredClientRepository registeredClientRepository) {
-//        return new JdbcOAuth2AuthorizationService(jdbcTemplate, registeredClientRepository);
-//    }
-
-//    @Bean
-//    public OAuth2AuthorizationConsentService authorizationConsentService(JdbcTemplate jdbcTemplate,
-//                                                                         RegisteredClientRepository registeredClientRepository) {
-//        return new JdbcOAuth2AuthorizationConsentService(jdbcTemplate, registeredClientRepository);
-//    }
 
     @Bean
     public JWKSource<SecurityContext> jwkSource() {
@@ -210,7 +216,7 @@ public class AuthorizationServerConfig {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder()
-                .issuer("http://localhost:8080")
+                .issuer("http://localhost:9000")
                 .authorizationEndpoint("/oauth2/authorize")
                 .tokenEndpoint("/oauth2/token")
                 .jwkSetEndpoint("/oauth2/jwks")
@@ -218,6 +224,7 @@ public class AuthorizationServerConfig {
                 .tokenIntrospectionEndpoint("/oauth2/introspect")
                 .oidcUserInfoEndpoint("/userinfo")
                 .oidcClientRegistrationEndpoint("/connect/register")
+                .oidcLogoutEndpoint("/connect/logout")
                 .build();
     }
 
@@ -232,6 +239,11 @@ public class AuthorizationServerConfig {
                 // Required: sub must never be null → fallback to username
                 claims.claim("sub", nonNullOr(user.getUuid(), user.getUsername()));
 
+                if (OidcParameterNames.ID_TOKEN.equals(context.getTokenType().getValue())) {
+                    String sessionId = context.getAuthorization().getId();
+                    claims.claim("sid", sessionId);
+                }
+
                 // Safe helper: only add claim if value is not null
                 claimIfNotNull(claims, "email", user.getEmail());
                 claimIfNotNull(claims, "email_verified", user.getEmailVerified());
@@ -245,20 +257,36 @@ public class AuthorizationServerConfig {
 
                 // birthdate → format as String (ISO date), skip if null
                 if (user.getDob() != null) {
-                    claims.claim("birthdate", user.getDob().toString()); // "1990-01-01"
+                    claims.claim("birthdate", user.getDob().toString());
                 }
 
-                // Roles / authorities
-                Set<String> roles = user.getAuthorities().stream()
+                // Separate roles and permissions
+                Set<String> allAuthorities = user.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.toSet());
+
+                // Roles: authorities starting with "ROLE_"
+                Set<String> roles = allAuthorities.stream()
+                        .filter(auth -> auth.startsWith("ROLE_"))
+                        .collect(Collectors.toSet());
                 claims.claim("roles", roles);
+
+                // Authorities: all granted authorities (roles + permissions combined)
+//                claims.claim("authorities", allAuthorities);
+
+                // Permissions: fine-grained authorities (not starting with "ROLE_")
+                Set<String> permissions = allAuthorities.stream()
+                        .filter(auth -> !auth.startsWith("ROLE_"))
+                        .collect(Collectors.toSet());
+                if (!permissions.isEmpty()) {
+                    claims.claim("permissions", permissions);
+                }
 
                 // Scope (required for access token)
                 if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
                     String scope = context.getAuthorizedScopes() != null
                             ? String.join(" ", context.getAuthorizedScopes())
-                            : String.join(" ", roles);
+                            : String.join(" ", allAuthorities);
                     claims.claim("scope", scope);
                 }
             }
@@ -284,22 +312,23 @@ public class AuthorizationServerConfig {
         return authProvider;
     }
 
-
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-
-
-    // config resource secure
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
-        config.addAllowedOrigin("http://127.0.0.1:8080");
+        config.addAllowedOrigin("http://127.0.0.1:9000");
+        config.addAllowedOrigin("http://localhost:9000");
+        config.addAllowedOrigin("http://localhost:8888");  // API Gateway
+        config.addAllowedOrigin("http://127.0.0.1:8888");
+        config.addAllowedOrigin("http://localhost:3000");  // Frontend
+        config.addAllowedOrigin("http://127.0.0.1:3000");
         config.setAllowCredentials(true);
         source.registerCorsConfiguration("/**", config);
         return source;

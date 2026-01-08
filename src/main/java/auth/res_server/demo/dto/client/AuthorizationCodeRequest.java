@@ -2,9 +2,11 @@ package auth.res_server.demo.dto.client;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.List;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class AuthorizationCodeRequest extends CreateClient {
     // Client Type: "pkce" or "normal"

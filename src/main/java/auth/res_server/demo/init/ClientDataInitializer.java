@@ -48,11 +48,12 @@ public class ClientDataInitializer implements CommandLineRunner {
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                     .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                    .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                    .redirectUri("http://127.0.0.1:8080/login/oauth2/code/test-client")
-                    .redirectUri("http://127.0.0.1:8080/authorize")
+                    .redirectUri("http://127.0.0.1:3000/login/oauth2/code/test-client")
+                    .redirectUri("http://localhost:3000/login/oauth2/code/test-client")
+                    // Frontend SPA on port 3000
                     .redirectUri("http://localhost:3000/oauth/callback")
-                    .postLogoutRedirectUri("http://127.0.0.1:8080/logged-out")
+                    // Post-logout redirects to client application
+                    .postLogoutRedirectUri("http://localhost:3000/")
                     .scope("openid")
                     .scope("profile")
                     .scope("email")
@@ -60,13 +61,13 @@ public class ClientDataInitializer implements CommandLineRunner {
                     .scope("write")
                     .clientSettings(ClientSettings.builder()
                             .requireAuthorizationConsent(true)
-                            .requireProofKey(true)
+                            .requireProofKey(true)  // PKCE - required for public clients
                             .build())
                     .tokenSettings(TokenSettings.builder()
                             .accessTokenFormat(OAuth2TokenFormat.SELF_CONTAINED)
                             .accessTokenTimeToLive(Duration.ofMinutes(30))
                             .refreshTokenTimeToLive(Duration.ofDays(3))
-                            .reuseRefreshTokens(false)
+                            .reuseRefreshTokens(false)  // Rotate refresh tokens for security
                             .build())
                     .build();
 
@@ -79,6 +80,55 @@ public class ClientDataInitializer implements CommandLineRunner {
                     clientRepository.delete(client);
                     System.out.println("Deleted existing custom client: m2m-client");
                 });
+
+        // === API Gateway Client (Authorization Code for Token Relay) ===
+        clientRepository.findByClientId("api-gateway")
+                .ifPresent(client -> {
+                    clientRepository.delete(client);
+                    System.out.println("Deleted existing api-gateway client");
+                });
+
+        if (registeredClientRepository.findByClientId("api-gateway") == null) {
+            RegisteredClient apiGatewayClient = RegisteredClient.withId(UUID.randomUUID().toString())
+                    .clientId("api-gateway")
+                    .clientName("API Gateway")
+                    .clientSecret(passwordEncoder.encode("gateway-secret"))
+                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                    .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                    .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                    // Gateway redirect URIs
+                    .redirectUri("http://localhost:8888/login/oauth2/code/api-gateway-client")
+                    .redirectUri("http://127.0.0.1:8888/login/oauth2/code/api-gateway-client")
+                    // BFF (Next.js) redirect URIs
+                    .redirectUri("http://localhost:3000/api/auth/callback")
+                    .redirectUri("http://127.0.0.1:3000/api/auth/callback")
+                    .postLogoutRedirectUri("http://localhost:8888")
+                    .postLogoutRedirectUri("http://localhost:8888/logout-success")
+                    .postLogoutRedirectUri("http://localhost:3000")
+                    .postLogoutRedirectUri("http://localhost:9000/logout")
+                    .scope("openid")
+                    .scope("profile")
+                    .scope("email")
+                    .scope("read")
+                    .scope("write")
+//                  .scope("openid", "profile", "email", "address", "phone")
+                    .clientSettings(ClientSettings.builder()
+                            .requireAuthorizationConsent(false)  // Skip consent for trusted BFF
+                            .requireProofKey(true)
+                            .build())
+                    .tokenSettings(TokenSettings.builder()
+                            .accessTokenFormat(OAuth2TokenFormat.SELF_CONTAINED)
+                            .accessTokenTimeToLive(Duration.ofMinutes(30))
+                            .refreshTokenTimeToLive(Duration.ofDays(7))
+                            .reuseRefreshTokens(false)
+                            .build())
+                    .build();
+
+            registeredClientRepository.save(apiGatewayClient);
+            System.out.println("Created API Gateway client: api-gateway");
+        }
 
         // === Machine-to-Machine Client (Client Credentials) ===
         if (registeredClientRepository.findByClientId("m2m-client") == null) {

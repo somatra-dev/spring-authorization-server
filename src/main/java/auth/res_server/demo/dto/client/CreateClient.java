@@ -7,6 +7,7 @@ import java.util.List;
 
 @Data
 public class CreateClient{
+
     @NotBlank(message = "Client ID is required")
     private String clientId;
 

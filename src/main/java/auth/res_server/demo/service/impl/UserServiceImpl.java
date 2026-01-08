@@ -1,6 +1,5 @@
 package auth.res_server.demo.service.impl;
 
-
 import auth.res_server.demo.domain.Role;
 import auth.res_server.demo.domain.User;
 import auth.res_server.demo.dto.user.CreateUser;
@@ -8,11 +7,13 @@ import auth.res_server.demo.dto.user.UpdateUser;
 import auth.res_server.demo.dto.user.UserResponse;
 import auth.res_server.demo.repository.RoleRepository;
 import auth.res_server.demo.repository.UserRepository;
+import auth.res_server.demo.service.EmailVerificationService;
 import auth.res_server.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -21,12 +22,13 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-
+    private final EmailVerificationService emailVerificationService;
 
     @Override
     public List<UserResponse> getAll() {
@@ -80,47 +82,26 @@ public class UserServiceImpl implements UserService {
                 .phoneNumber(request.phoneNumber())
                 .gender(request.gender())
                 .dob(request.dob())
-                .provider("local")           // explicit for local accounts
+                .provider("local")
                 .roles(roleEntities)
                 .enabled(true)
-                .emailVerified(false)        // require email verification later
+                .emailVerified(false)
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        // Map to response DTO
-        UserResponse.builder()
-                .id(savedUser.getUuid())
-                .userId(savedUser.getId())
-                .username(savedUser.getUsername())
-                .email(savedUser.getEmail())
-                .firstName(savedUser.getFirstName())
-                .lastName(savedUser.getLastName())
-                .fullName(savedUser.getGivenName() + " " + savedUser.getFamilyName())
-                .phoneNumber(savedUser.getPhoneNumber())
-                .gender(savedUser.getGender())
-                .dob(savedUser.getDob())
-                .profilePictureUrl(savedUser.getProfileImage())
-                .coverImageUrl(savedUser.getCoverImage())
-                .enabled(savedUser.isEnabled())
-                .emailVerified(savedUser.getEmailVerified())
-                .roles(savedUser.getRoles().stream()
-                        .map(Role::getName)
-                        .toList())
-                .createdAt(savedUser.getCreatedAt())
-                .updatedAt(savedUser.getUpdatedAt())
-                .build();
+        // Send verification email
+        emailVerificationService.sendVerificationEmail(savedUser);
     }
-
 
     @Override
     public void updateUserById(UpdateUser updateUser, String id) {
-
+        // TODO: Implement user update
     }
 
     @Override
     public void deleteUserById(String id) {
-
+        // TODO: Implement user deletion
     }
 
     private String toFullRoleName(String input) {

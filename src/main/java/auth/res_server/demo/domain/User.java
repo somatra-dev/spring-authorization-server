@@ -11,8 +11,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -41,10 +42,10 @@ public class User implements UserDetails {
     private boolean emailVerified = false;
 
     @Column(name = "first_name")
-    private String firstName;          // givenName
+    private String firstName;
 
     @Column(name = "last_name")
-    private String lastName;           // familyName
+    private String lastName;
 
     @Column(name = "phone_number")
     private String phoneNumber;
@@ -56,14 +57,14 @@ public class User implements UserDetails {
     private LocalDate dob;
 
     @Column(name = "profile_picture_url")
-    private String profilePictureUrl;   // profileImage
+    private String profilePictureUrl;
 
     @Column(name = "cover_image_url")
-    private String coverImageUrl;       // coverImage
+    private String coverImageUrl;
 
     // OAuth2 fields
     @Column(name = "provider")
-    private String provider;            // e.g., "local", "google", "github"
+    private String provider;
 
     @Column(name = "provider_id")
     private String providerId;
@@ -104,10 +105,19 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles.stream()
+        Set<GrantedAuthority> grantedAuthorities = new HashSet<>();
+
+        // Add role names as authorities (e.g., "ROLE_USER", "ROLE_ADMIN")
+        roles.forEach(role ->
+                grantedAuthorities.add(new SimpleGrantedAuthority(role.getName())));
+
+        // Add fine-grained authorities from roles
+        roles.stream()
                 .flatMap(role -> role.getAuthorities().stream())
-                .map(authority -> new SimpleGrantedAuthority(authority.getName()))
-                .collect(Collectors.toSet());
+                .forEach(authority ->
+                        grantedAuthorities.add(new SimpleGrantedAuthority(authority.getName())));
+
+        return grantedAuthorities;
     }
 
     @Override
@@ -170,8 +180,6 @@ public class User implements UserDetails {
     public boolean isOAuth2User() {
         return provider != null && !"local".equals(provider);
     }
-
-    /* ===================== Builder (optional but nice to have) ===================== */
 
     public static UserBuilder builder() {
         return new UserBuilder();

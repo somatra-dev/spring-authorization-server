@@ -4,6 +4,22 @@ spring:
   main:
     allow-bean-definition-overriding: true
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: somatrachey9527@gmail.com
+    password: mgae xtow ygrx wmnk
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
   datasource:
     url: jdbc:postgresql://localhost:5555/auth_db
     username: admin
@@ -25,45 +41,6 @@ spring:
           authorization-uri: /oauth2/authorize
           token-uri: /oauth2/token
 
-#  security:
-##    user:
-##      name: matra
-##      password: 123
-#
-##     Static OAuth2 client configuration
-#    oauth2:
-#      authorizationserver:
-#        client:
-#          oidc-client:
-#            registration:
-#              client-id: test-client
-#              client-secret: test-secret
-#              client-authentication-methods: none
-#              authorization-grant-types: authorization_code
-#              redirect-uris: http://127.0.0.1:8080/login/oauth2/code/test-client
-#              scopes: openid profile email read write
-#            require-authorization-consent: true
-#            require-proof-key: true  # PKCE
-#            token:
-#              access-token-time-to-live: 1h
-#              refresh-token-time-to-live: 30d
-#              reuse-refresh-tokens: false
-#
-#          # Public client (SPA) with PKCE
-#          spa-client:
-#            registration:
-#              client-id: spa-client
-#              client-secret:   # Empty for public client
-#              client-authentication-methods: none  # Public client
-#              authorization-grant-types: authorization_code
-#              redirect-uris: http://localhost:3000/callback
-#              scopes: openid,profile,email,read
-#            require-authorization-consent: false
-#            require-proof-key: true  # PKCE required
-#            token:
-#              access-token-time-to-live: 1h
-#              reuse-refresh-tokens: false
-
 server:
   port: 9000
 
@@ -73,3 +50,8 @@ logging:
     org.springframework.security.oauth2: DEBUG
     org.springframework.web: DEBUG
     org.hibernate.validator: TRACE
+
+app:
+  mail:
+    from: somatrachey9527@gmail.com
+    base-url: http://localhost:9000
