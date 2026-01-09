@@ -105,6 +105,7 @@ public class ClientDataInitializer implements CommandLineRunner {
                     .redirectUri("http://localhost:3000/api/auth/callback")
                     .redirectUri("http://127.0.0.1:3000/api/auth/callback")
                     .postLogoutRedirectUri("http://localhost:8888")
+                    .postLogoutRedirectUri("http://localhost:8888/")
                     .postLogoutRedirectUri("http://localhost:8888/logout-success")
                     .postLogoutRedirectUri("http://localhost:3000")
                     .postLogoutRedirectUri("http://localhost:9000/logout")
