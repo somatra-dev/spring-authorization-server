@@ -71,9 +71,9 @@ public class AuthorizationServerConfig {
                         authorizationEndpoint.consentPage("/oauth2/consent"))
                 .oidc(oidc -> oidc
                         // Enable OIDC configuration endpoint
-                        .providerConfigurationEndpoint(providerConfigurationEndpoint -> {
-
-                        })
+                        .providerConfigurationEndpoint(Customizer.withDefaults())
+                        // Enable OIDC logout endpoint (/connect/logout)
+                        .logoutEndpoint(Customizer.withDefaults())
                 );
         http
                 .securityMatcher(
