@@ -17,6 +17,7 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
@@ -32,6 +33,8 @@ import org.springframework.security.oauth2.server.authorization.token.JwtEncodin
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
@@ -48,6 +51,7 @@ import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class AuthorizationServerConfig {
 
@@ -152,26 +156,41 @@ public class AuthorizationServerConfig {
     @Bean
     @Order(2)
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+        // CSRF token handler for SPA clients
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null); // Required for SPA to work with deferred tokens
+
         http
                 .securityMatcher("/**")  // Match all other requests
                 .authorizeHttpRequests(authorize ->
                         authorize
+                                // Public endpoints
                                 .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
                                 .requestMatchers("/api/v1/auth/verify-email").permitAll()
                                 .requestMatchers("/api/v1/auth/resend-verification").permitAll()
+                                .requestMatchers("/login", "/register", "/error", "/css/**", "/js/**").permitAll()
+                                // Admin endpoints - require ROLE_ADMIN
                                 .requestMatchers("/api/v1/clients/**").permitAll()
                                 .requestMatchers("/api/v1/roles/**").permitAll()
                                 .requestMatchers("/api/v1/authorities/**").permitAll()
-                                .requestMatchers("/login", "/register", "/error", "/css/**", "/js/**").permitAll()
+                                // All other requests require authentication
                                 .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
                         .permitAll()
                 )
-
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/**") // optional: disable only for APIs
+                        // Use cookie-based CSRF token repository for SPA clients
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(requestHandler)
+                        // Ignore CSRF for stateless API endpoints (use Bearer token auth)
+                        .ignoringRequestMatchers(
+                                "/api/v1/**",
+                                "/oauth2/token",
+                                "/oauth2/introspect",
+                                "/oauth2/revoke"
+                        )
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))

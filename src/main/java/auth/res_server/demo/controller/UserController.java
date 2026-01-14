@@ -1,7 +1,9 @@
 package auth.res_server.demo.controller;
 
+import auth.res_server.demo.dto.BaseResponse;
 import auth.res_server.demo.dto.user.CreateUser;
 import auth.res_server.demo.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,10 +20,19 @@ public class UserController {
 
     private final UserService userService;
 
-    @PostMapping()
-    public ResponseEntity<String> addUser(@Valid @RequestBody CreateUser user) {
-        userService.createUser(user);
-        return ResponseEntity.status(HttpStatus.CREATED).body("User created successfully");
-    }
+    @PostMapping
+    public ResponseEntity<BaseResponse<Void>> createUser(
+            @Valid @RequestBody CreateUser request,
+            HttpServletRequest httpRequest) {
 
+        userService.createUser(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(BaseResponse.success(
+                        "User created successfully",
+                        HttpStatus.CREATED.value(),
+                        httpRequest.getRequestURI()
+                ));
+    }
 }

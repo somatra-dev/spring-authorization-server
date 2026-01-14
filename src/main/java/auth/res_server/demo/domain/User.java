@@ -90,6 +90,12 @@ public class User implements UserDetails {
     @Column(name = "credentials_non_expired", nullable = false)
     private boolean credentialsNonExpired = true;
 
+    @Column(name = "failed_attempts", nullable = false)
+    private int failedAttempts = 0;
+
+    @Column(name = "lock_time")
+    private Instant lockTime;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -204,6 +210,9 @@ public class User implements UserDetails {
         public UserBuilder providerId(String providerId) { user.providerId = providerId; return this; }
         public UserBuilder roles(List<Role> roles) { user.roles = roles; return this; }
         public UserBuilder enabled(boolean enabled) { user.enabled = enabled; return this; }
+        public UserBuilder failedAttempts(int failedAttempts) { user.failedAttempts = failedAttempts; return this; }
+        public UserBuilder lockTime(Instant lockTime) { user.lockTime = lockTime; return this; }
+        public UserBuilder accountNonLocked(boolean accountNonLocked) { user.accountNonLocked = accountNonLocked; return this; }
         public User build() { return user; }
     }
 }

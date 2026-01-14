@@ -1,8 +1,10 @@
 package auth.res_server.demo.controller;
 
+import auth.res_server.demo.dto.BaseResponse;
 import auth.res_server.demo.dto.email.ResendVerificationRequest;
 import auth.res_server.demo.dto.email.VerifyEmailRequest;
 import auth.res_server.demo.service.EmailVerificationService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,20 +18,41 @@ public class EmailVerificationController {
     private final EmailVerificationService emailVerificationService;
 
     @GetMapping("/verify-email")
-    public ResponseEntity<String> verifyEmail(@RequestParam String token) {
+    public ResponseEntity<BaseResponse<Void>> verifyEmail(
+            @RequestParam String token,
+            HttpServletRequest httpRequest) {
+
         emailVerificationService.verifyEmail(token);
-        return ResponseEntity.ok("Email verified successfully");
+
+        return ResponseEntity.ok(BaseResponse.ok(
+                "Email verified successfully",
+                httpRequest.getRequestURI()
+        ));
     }
 
     @PostMapping("/verify-email")
-    public ResponseEntity<String> verifyEmailPost(@Valid @RequestBody VerifyEmailRequest request) {
+    public ResponseEntity<BaseResponse<Void>> verifyEmailPost(
+            @Valid @RequestBody VerifyEmailRequest request,
+            HttpServletRequest httpRequest) {
+
         emailVerificationService.verifyEmail(request.token());
-        return ResponseEntity.ok("Email verified successfully");
+
+        return ResponseEntity.ok(BaseResponse.ok(
+                "Email verified successfully",
+                httpRequest.getRequestURI()
+        ));
     }
 
     @PostMapping("/resend-verification")
-    public ResponseEntity<String> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+    public ResponseEntity<BaseResponse<Void>> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request,
+            HttpServletRequest httpRequest) {
+
         emailVerificationService.resendVerificationEmail(request.email());
-        return ResponseEntity.ok("If the email exists, a verification email has been sent");
+
+        return ResponseEntity.ok(BaseResponse.ok(
+                "If the email exists, a verification email has been sent",
+                httpRequest.getRequestURI()
+        ));
     }
 }
